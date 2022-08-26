@@ -49,11 +49,12 @@ fn find_files_in_directory(dir_path: String) -> Result<Vec<String>, Error> {
     for entry in entries {
         let path = entry.unwrap().path();
         let path_name = path.file_name().unwrap().to_string_lossy().into_owned();
+        let full_path_name = format!("{}/{}", dir_path, path_name);
         if path.is_dir() {
-            paths.append(&mut find_files_in_directory(path_name)?);
+            paths.append(&mut find_files_in_directory(full_path_name)?);
             continue;
         }
-        paths.push(format!("{}/{}", dir_path, path_name));
+        paths.push(full_path_name);
     }
 
     Ok(paths)
