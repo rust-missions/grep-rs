@@ -1,12 +1,12 @@
 use std::fmt;
 
-pub struct Args {
+pub struct Target {
     pub keyword: String,
     pub path: String,
 }
 
-impl Args {
-    pub fn build(args: &[String]) -> Result<Args, Error> {
+impl Target {
+    pub fn build(args: &[String]) -> Result<Target, Error> {
         let mut args = args.iter().skip(1);
         let keyword = match args.next() {
             Some(keyword) => keyword.clone(),
@@ -21,7 +21,7 @@ impl Args {
             return Err(Error::TooManyArgs(args));
         }
 
-        Ok(Args { keyword, path })
+        Ok(Target { keyword, path })
     }
 }
 
