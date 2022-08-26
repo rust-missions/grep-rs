@@ -1,3 +1,5 @@
+use std::fs::ReadDir;
+use std::path::PathBuf;
 use std::{fmt, fs};
 
 pub struct Target {
@@ -20,21 +22,23 @@ impl Target {
             let args = args.map(|x| x.to_string()).collect();
             return Err(Error::TooManyArgs(args));
         }
-        Ok(Target { keyword, paths: find_all_paths(path)? })
+        Ok(Target {
+            keyword,
+            paths: find_all_paths(path)?,
+        })
     }
 }
 
 fn find_all_paths(path: String) -> Result<Vec<String>, Error> {
     return match fs::metadata(&path) {
         Ok(metadata) => {
-            // TODO: should be refactored
-            if metadata.is_dir() {
-               return match find_files_in_directory(path) {
-                   Ok(paths) => Ok(paths),
-                   Err(_) => Err(Error::FileSystemError),
-               };
+            if metadata.is_file() {
+                return Ok(vec![path]);
             }
-            Ok(vec![path])
+            match find_files_in_directory(path) {
+                Ok(paths) => Ok(paths),
+                Err(_) => Err(Error::FileSystemError),
+            }
         }
         Err(_) => Err(Error::InvalidPath(path)),
     };
@@ -42,29 +46,34 @@ fn find_all_paths(path: String) -> Result<Vec<String>, Error> {
 
 fn find_files_in_directory(dir_path: String) -> Result<Vec<String>, Error> {
     let mut paths: Vec<String> = Vec::new();
-    let entries = match fs::read_dir(&dir_path) {
-        Ok(read_dir) => read_dir,
-        Err(_) => return Err(Error::FileSystemError),
-    };
-
-    for entry in entries {
+    for entry in read_directory(&dir_path)? {
         let path = match entry {
             Ok(entry) => entry.path(),
             Err(_) => return Err(Error::FileSystemError),
         };
-        let path_name = match path.file_name() {
-            Some(file_name) => file_name.to_string_lossy().into_owned(),
-            None => return Err(Error::FileSystemError),
-        };
-        let full_path_name = format!("{}/{}", dir_path, path_name);
+        let full_path = format!("{}/{}", dir_path, to_path_name(&path)?);
         if path.is_dir() {
-            paths.append(&mut find_files_in_directory(full_path_name)?);
+            paths.append(&mut find_files_in_directory(full_path)?);
             continue;
         }
-        paths.push(full_path_name);
+        paths.push(full_path);
     }
 
     Ok(paths)
+}
+
+fn read_directory(dir_path: &String) -> Result<ReadDir, Error> {
+    match fs::read_dir(dir_path) {
+        Ok(read_dir) => Ok(read_dir),
+        Err(_) => Err(Error::FileSystemError),
+    }
+}
+
+fn to_path_name(path: &PathBuf) -> Result<String, Error> {
+    match path.file_name() {
+        Some(file_name) => Ok(file_name.to_string_lossy().into_owned()),
+        None => Err(Error::FileSystemError),
+    }
 }
 
 pub enum Error {
