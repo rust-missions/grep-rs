@@ -27,6 +27,7 @@ impl Target {
 fn find_all_paths(path: String) -> Result<Vec<String>, Error> {
     return match fs::metadata(&path) {
         Ok(metadata) => {
+            // TODO: should be refactored
             if metadata.is_dir() {
                return match find_files_in_directory(path) {
                    Ok(paths) => Ok(paths),
@@ -47,8 +48,14 @@ fn find_files_in_directory(dir_path: String) -> Result<Vec<String>, Error> {
     };
 
     for entry in entries {
-        let path = entry.unwrap().path();
-        let path_name = path.file_name().unwrap().to_string_lossy().into_owned();
+        let path = match entry {
+            Ok(entry) => entry.path(),
+            Err(_) => return Err(Error::FileSystemError),
+        };
+        let path_name = match path.file_name() {
+            Some(file_name) => file_name.to_string_lossy().into_owned(),
+            None => return Err(Error::FileSystemError),
+        };
         let full_path_name = format!("{}/{}", dir_path, path_name);
         if path.is_dir() {
             paths.append(&mut find_files_in_directory(full_path_name)?);
