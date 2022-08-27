@@ -16,15 +16,20 @@ fn main() {
             process::exit(1);
         }
     };
-    let thread_pool = match ThreadPool::new(&target.paths.len()) {
-        Ok(pool) => pool,
-        Err(e) => {
+    let workload = &target.paths.len();
+    if workload > &1 {
+        let thread_pool = match ThreadPool::new(workload) {
+            Ok(pool) => pool,
+            Err(e) => {
+                eprintln!("{}", e);
+                process::exit(1);
+            }
+        };
+        if let Err(e) = thread_pool.run(target) {
             eprintln!("{}", e);
             process::exit(1);
-        }
-    };
-    if let Err(e) = thread_pool.run(target) {
-        eprintln!("{}", e);
-        process::exit(1);
-    };
+        };
+        return
+    }
+    println!("{}", search::run(&target.keyword, &target.paths.get(0).unwrap()));
 }
