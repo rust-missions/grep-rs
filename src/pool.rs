@@ -2,7 +2,7 @@ use crate::error::Error;
 use std::sync::{mpsc, Arc, Mutex};
 use std::{process, thread};
 use std::sync::mpsc::Receiver;
-use crate::{print, Target};
+use crate::{search, Target};
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
@@ -23,9 +23,9 @@ impl ThreadPool {
         for path in target.paths.to_vec() {
             let keyword = target.keyword.clone();
             let result_sender = result_sender.clone();
-            execute(&job_sender, move || match print::run(&keyword, &path) {
-                Ok(_) => result_sender
-                    .send(Box::new(|| println!("finished!")))
+            execute(&job_sender, move || match search::run(&keyword, &path) {
+                Ok(search_result) => result_sender
+                    .send(Box::new(move || println!("{}", search_result)))
                     .unwrap(),
                 Err(e) => {
                     eprintln!("{}", e);

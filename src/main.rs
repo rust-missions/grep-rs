@@ -3,7 +3,7 @@ use std::{env, process};
 use crate::pool::ThreadPool;
 
 mod error;
-mod print;
+mod search;
 mod target;
 mod pool;
 
