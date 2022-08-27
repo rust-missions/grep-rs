@@ -1,29 +1,52 @@
 use crate::error::Error;
-use std::sync::{mpsc, Arc, Mutex};
-use std::{process, thread};
-use std::sync::mpsc::Receiver;
 use crate::{search, Target};
 
-type Job = Box<dyn FnOnce() + Send + 'static>;
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{mpsc, Arc, Mutex};
+use std::{process, thread};
 
-pub struct ThreadPool;
+type Job = Box<dyn FnOnce() + Send + 'static>;
+type JobResult = Box<dyn FnOnce() + Send + 'static>;
+
+pub struct ThreadPool {
+    pub master: Master,
+    pub workers: Vec<Worker>,
+}
 
 impl ThreadPool {
-    pub fn run(target: Target) -> Result<(), Error> {
-        let total_workload = &target.paths.len();
-        let (job_sender, job_receiver) = mpsc::channel();
-        let (result_sender, result_receiver) = mpsc::channel();
+    pub fn new() -> Result<ThreadPool, Error> {
+        let (sender, receiver) = mpsc::channel();
+        let receiver = Arc::new(Mutex::new(receiver));
 
-        let job_receiver = Arc::new(Mutex::new(job_receiver));
+        let master = Master { sender };
         let mut workers = Vec::new();
         for _ in 0..5 {
-            workers.push(Worker::new(job_receiver.clone()));
+            workers.push(Worker::new(receiver.clone()));
         }
+
+        Ok(ThreadPool { master, workers })
+    }
+
+    pub fn run(&self, target: Target) -> Result<(), Error> {
+        self.master.run(target);
+
+        Ok(())
+    }
+}
+
+pub struct Master {
+    sender: Sender<Job>,
+}
+
+impl Master {
+    pub fn run(&self, target: Target) {
+        let (result_sender, result_receiver) = mpsc::channel::<JobResult>();
 
         for path in target.paths.to_vec() {
             let keyword = target.keyword.clone();
             let result_sender = result_sender.clone();
-            execute(&job_sender, move || match search::run(&keyword, &path) {
+
+            execute(&self.sender, move || match search::run(&keyword, &path) {
                 Ok(search_result) => result_sender
                     .send(Box::new(move || println!("{}", search_result)))
                     .unwrap(),
@@ -33,26 +56,28 @@ impl ThreadPool {
                 }
             });
         }
+        self.close(target.paths.len(), &result_receiver);
+    }
 
+    fn close(&self, total_workload: usize, result_receiver: &Receiver<JobResult>) {
         for (idx, result) in result_receiver.iter().enumerate() {
             result();
             if idx == total_workload - 1 {
-                return Ok(());
+                process::exit(0);
             }
         }
-        Ok(())
     }
 }
 
-fn execute<F>(sender: &mpsc::Sender<Job>, f: F)
-    where
-        F: FnOnce() + Send + 'static,
+fn execute<F>(sender: &Sender<Job>, f: F)
+where
+    F: FnOnce() + Send + 'static,
 {
     let job = Box::new(f);
     sender.send(job).unwrap();
 }
 
-struct Worker {
+pub struct Worker {
     thread: thread::JoinHandle<()>,
 }
 

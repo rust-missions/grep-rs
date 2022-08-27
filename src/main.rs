@@ -1,11 +1,11 @@
+use crate::pool::ThreadPool;
 use crate::target::Target;
 use std::{env, process};
-use crate::pool::ThreadPool;
 
 mod error;
+mod pool;
 mod search;
 mod target;
-mod pool;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -16,8 +16,14 @@ fn main() {
             process::exit(1);
         }
     };
-
-    if let Err(e) = ThreadPool::run(target) {
+    let thread_pool = match ThreadPool::new() {
+        Ok(pool) => pool,
+        Err(e) => {
+            eprintln!("{}", e);
+            process::exit(1);
+        }
+    };
+    if let Err(e) = thread_pool.run(target) {
         eprintln!("{}", e);
         process::exit(1);
     };
