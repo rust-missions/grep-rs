@@ -31,8 +31,19 @@ impl ThreadPool {
         Ok(ThreadPool { master, workers })
     }
 
-    pub fn run(&self, target: Target) {
-        self.master.run(target);
+    pub fn run(self, target: Target) -> Result<(), Error> {
+        match self.master.run(target) {
+            Ok(_) => {
+                for worker in self.workers {
+                    if let Err(_) = worker.thread.join() {
+                        return Err(Error::ThreadPoolError);
+                    }
+                }
+            }
+            Err(e) => return Err(e),
+        };
+
+        Ok(())
     }
 }
 
@@ -41,42 +52,55 @@ pub struct Master {
 }
 
 impl Master {
-    pub fn run(&self, target: Target) {
+    pub fn run(self, target: Target) -> Result<(), Error> {
         let (result_sender, result_receiver) = mpsc::channel::<JobResult>();
 
         for path in target.paths.to_vec() {
             let keyword = target.keyword.clone();
             let result_sender = result_sender.clone();
 
-            execute(&self.sender, move || match search::run(&keyword, &path) {
-                Ok(search_result) => result_sender
-                    .send(Box::new(move || println!("{}", search_result)))
-                    .unwrap(),
+            if let Err(e) = self.execute(move || match search::run(&keyword, &path) {
+                Ok(search_result) => {
+                    if let Err(e) =
+                    result_sender.send(Box::new(move || println!("{}", search_result)))
+                    {
+                        eprintln!("{}", e);
+                        process::exit(1);
+                    }
+                }
                 Err(e) => {
                     eprintln!("{}", e);
                     process::exit(1);
                 }
-            });
+            }) {
+                return Err(e);
+            };
         }
         self.close(target.paths.len(), &result_receiver);
+
+        Ok(())
     }
 
-    fn close(&self, total_workload: usize, result_receiver: &Receiver<JobResult>) -> () {
+    fn execute<F>(&self, f: F) -> Result<(), Error>
+        where
+            F: FnOnce() + Send + 'static,
+    {
+        let job = Box::new(f);
+        match self.sender.send(job) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(Error::ThreadPoolError),
+        }
+    }
+
+    fn close(self, total_workload: usize, result_receiver: &Receiver<JobResult>) -> () {
         for (idx, result) in result_receiver.iter().enumerate() {
             result();
             if idx == total_workload - 1 {
+                drop(self.sender);
                 return ();
             }
         }
     }
-}
-
-fn execute<F>(sender: &Sender<Job>, f: F)
-where
-    F: FnOnce() + Send + 'static,
-{
-    let job = Box::new(f);
-    sender.send(job).unwrap();
 }
 
 pub struct Worker {
@@ -86,8 +110,16 @@ pub struct Worker {
 impl Worker {
     fn new(receiver: Arc<Mutex<Receiver<Job>>>) -> Worker {
         let thread = thread::spawn(move || loop {
-            let job = receiver.lock().unwrap().recv().unwrap();
-            job();
+            match receiver.lock() {
+                Ok(mutex) => match mutex.recv() {
+                    Ok(job) => job(),
+                    Err(_) => break,
+                },
+                Err(e) => {
+                    eprintln!("{}", e);
+                    process::exit(1);
+                }
+            }
         });
         Worker { thread }
     }
