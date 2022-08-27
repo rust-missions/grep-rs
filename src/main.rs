@@ -23,8 +23,5 @@ fn main() {
             process::exit(1);
         }
     };
-    if let Err(e) = thread_pool.run(target) {
-        eprintln!("{}", e);
-        process::exit(1);
-    };
+    thread_pool.run(target)
 }

@@ -16,7 +16,7 @@ pub struct ThreadPool {
 
 impl ThreadPool {
     pub fn new(workload: &usize) -> Result<ThreadPool, Error> {
-        if workload == 0 {
+        if *workload == 0 {
             return Err(Error::ThreadPoolError);
         }
         let (sender, receiver) = mpsc::channel();
@@ -31,10 +31,8 @@ impl ThreadPool {
         Ok(ThreadPool { master, workers })
     }
 
-    pub fn run(&self, target: Target) -> Result<(), Error> {
+    pub fn run(&self, target: Target) {
         self.master.run(target);
-
-        Ok(())
     }
 }
 
@@ -63,11 +61,11 @@ impl Master {
         self.close(target.paths.len(), &result_receiver);
     }
 
-    fn close(&self, total_workload: usize, result_receiver: &Receiver<JobResult>) {
+    fn close(&self, total_workload: usize, result_receiver: &Receiver<JobResult>) -> () {
         for (idx, result) in result_receiver.iter().enumerate() {
             result();
             if idx == total_workload - 1 {
-                process::exit(0);
+                return ();
             }
         }
     }
