@@ -112,8 +112,8 @@ impl Worker {
 }
 
 fn send_job<F>(sender: &Sender<Box<dyn FnOnce() + Send + 'static>>, job: F) -> Result<(), Error>
-    where
-        F: FnOnce() + Send + 'static,
+where
+    F: FnOnce() + Send + 'static,
 {
     let job = Box::new(job);
     if sender.send(job).is_err() {
