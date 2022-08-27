@@ -1,7 +1,7 @@
 use crate::error::Error;
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 pub struct Target {
     pub keyword: String,
@@ -31,18 +31,18 @@ impl Target {
 }
 
 fn find_all_paths(path: String) -> Result<Vec<String>, Error> {
-    return match fs::metadata(&path) {
+    match fs::metadata(&path) {
         Ok(metadata) => {
             if metadata.is_file() {
                 return Ok(vec![path]);
             }
             match find_files_in_directory(path) {
                 Ok(paths) => Ok(paths),
-                Err(_) => Err(Error::FileSystemError),
+                Err(_) => Err(Error::FileSystem),
             }
         }
         Err(_) => Err(Error::InvalidPath(path)),
-    };
+    }
 }
 
 fn find_files_in_directory(dir_path: String) -> Result<Vec<String>, Error> {
@@ -50,7 +50,7 @@ fn find_files_in_directory(dir_path: String) -> Result<Vec<String>, Error> {
     for entry in read_directory(&dir_path)? {
         let path = match entry {
             Ok(entry) => entry.path(),
-            Err(_) => return Err(Error::FileSystemError),
+            Err(_) => return Err(Error::FileSystem),
         };
         let full_path = format!("{}/{}", dir_path, to_path_name(&path)?);
         if path.is_dir() {
@@ -66,13 +66,13 @@ fn find_files_in_directory(dir_path: String) -> Result<Vec<String>, Error> {
 fn read_directory(dir_path: &String) -> Result<fs::ReadDir, Error> {
     match fs::read_dir(dir_path) {
         Ok(read_dir) => Ok(read_dir),
-        Err(_) => Err(Error::FileSystemError),
+        Err(_) => Err(Error::FileSystem),
     }
 }
 
-fn to_path_name(path: &PathBuf) -> Result<String, Error> {
+fn to_path_name(path: &Path) -> Result<String, Error> {
     match path.file_name() {
         Some(file_name) => Ok(file_name.to_string_lossy().into_owned()),
-        None => Err(Error::FileSystemError),
+        None => Err(Error::FileSystem),
     }
 }

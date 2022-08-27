@@ -9,8 +9,8 @@ pub fn run(args: Vec<String>) -> Result<(), Error> {
         return Ok(());
     }
     match target.paths.get(0) {
-        Some(path) => println!("{}", search::run(&target.keyword,path)),
-        None => return Err(Error::FileSystemError),
+        Some(path) => println!("{}", search::run(&target.keyword, path)),
+        None => return Err(Error::FileSystem),
     };
     Ok(())
 }

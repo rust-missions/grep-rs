@@ -17,7 +17,7 @@ pub struct ThreadPool {
 impl ThreadPool {
     pub fn new(workload: &usize) -> Result<ThreadPool, Error> {
         if *workload == 0 {
-            return Err(Error::ThreadError);
+            return Err(Error::Thread);
         }
         let (sender, receiver) = mpsc::channel();
         let receiver = Arc::new(Mutex::new(receiver));
@@ -35,8 +35,8 @@ impl ThreadPool {
         match self.master.run(target) {
             Ok(_) => {
                 for worker in self.workers {
-                    if let Err(_) = &worker.thread.join() {
-                        return Err(Error::ThreadError);
+                    if worker.thread.join().is_err() {
+                        return Err(Error::Thread);
                     }
                 }
             }
@@ -55,9 +55,10 @@ impl Master {
     pub fn run(self, target: Target) -> Result<(), Error> {
         let (result_sender, result_receiver) = mpsc::channel::<JobResult>();
 
-        for path in target.paths.to_vec() {
+        for path in target.paths.clone() {
             let keyword = target.keyword.clone();
             let result_sender = result_sender.clone();
+
             self.send_job(move || {
                 Self::print_search_result(result_sender, search::run(&keyword, &path))
             })?
@@ -72,25 +73,26 @@ impl Master {
         F: FnOnce() + Send + 'static,
     {
         let job = Box::new(job);
-        if let Err(_) = self.sender.send(job) {
-            return Err(Error::ThreadError);
+        if self.sender.send(job).is_err() {
+            return Err(Error::Thread);
         }
         Ok(())
     }
 
     fn print_search_result(result_sender: Sender<JobResult>, result: String) {
-        if let Err(_) = result_sender.send(Box::new(move || println!("{}", result))) {
-            println!("{}", Error::ThreadError);
+        let send_result = result_sender.send(Box::new(move || println!("{}", result)));
+        if send_result.is_err() {
+            println!("{}", Error::Thread);
             process::exit(1);
         }
     }
 
-    fn close(self, total_workload: usize, result_receiver: &Receiver<JobResult>) -> () {
+    fn close(self, total_workload: usize, result_receiver: &Receiver<JobResult>) {
         for (idx, result) in result_receiver.iter().enumerate() {
             result();
             if idx == total_workload - 1 {
                 drop(self.sender);
-                return ();
+                return;
             }
         }
     }
@@ -109,7 +111,7 @@ impl Worker {
                     Err(_) => break,
                 },
                 Err(_) => {
-                    eprintln!("{}", Error::ThreadError);
+                    eprintln!("{}", Error::Thread);
                     process::exit(1);
                 }
             }

@@ -1,11 +1,11 @@
 use crate::error::Error;
 use std::{fs, process};
 
-pub fn run(keyword: &String, path: &String) -> String {
+pub fn run(keyword: &str, path: &String) -> String {
     let contents = match fs::read_to_string(path) {
         Ok(content) => content,
         Err(_) => {
-            eprintln!("{}", Error::FileSystemError);
+            eprintln!("{}", Error::FileSystem);
             process::exit(1);
         }
     };
