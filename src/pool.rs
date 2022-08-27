@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::{search, Target};
 
+use std::cmp::min;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex};
 use std::{process, thread};
@@ -14,13 +15,16 @@ pub struct ThreadPool {
 }
 
 impl ThreadPool {
-    pub fn new() -> Result<ThreadPool, Error> {
+    pub fn new(workload: &usize) -> Result<ThreadPool, Error> {
+        if workload == 0 {
+            return Err(Error::ThreadPoolError);
+        }
         let (sender, receiver) = mpsc::channel();
         let receiver = Arc::new(Mutex::new(receiver));
 
         let master = Master { sender };
         let mut workers = Vec::new();
-        for _ in 0..5 {
+        for _ in 0..min(10, *workload) {
             workers.push(Worker::new(receiver.clone()));
         }
 

@@ -5,6 +5,7 @@ pub enum Error {
     MissingPath,
     TooManyArgs(Vec<String>),
     InvalidPath(String),
+    ThreadPoolError,
     FileSystemError,
 }
 
@@ -18,7 +19,8 @@ impl fmt::Display for Error {
                 write!(f, "Unnecessary arguments: {}", args)
             }
             Error::InvalidPath(path) => write!(f, "Invalid path: {}", path),
-            Error::FileSystemError => write!(f, "Internal Error"),
+            Error::ThreadPoolError => write!(f, "Internal Error: thread pool"),
+            Error::FileSystemError => write!(f, "Internal Error: file system"),
         }
     }
 }

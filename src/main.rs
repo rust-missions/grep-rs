@@ -16,7 +16,7 @@ fn main() {
             process::exit(1);
         }
     };
-    let thread_pool = match ThreadPool::new() {
+    let thread_pool = match ThreadPool::new(&target.paths.len()) {
         Ok(pool) => pool,
         Err(e) => {
             eprintln!("{}", e);
