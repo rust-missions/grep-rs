@@ -5,6 +5,7 @@ use std::path::Path;
 
 pub struct Target {
     pub keyword: String,
+    pub raw_path: String,
     pub paths: Vec<String>,
 }
 
@@ -23,9 +24,11 @@ impl Target {
             let args = args.map(|x| x.to_string()).collect();
             return Err(Error::TooManyArgs(args));
         }
+        let paths = find_all_paths(path.clone())?;
         Ok(Target {
             keyword,
-            paths: find_all_paths(path)?,
+            raw_path: path,
+            paths,
         })
     }
 }

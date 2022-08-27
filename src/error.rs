@@ -5,6 +5,7 @@ pub enum Error {
     MissingPath,
     TooManyArgs(Vec<String>),
     InvalidPath(String),
+    EmptyDirectory(String),
     Thread,
     FileSystem,
 }
@@ -19,6 +20,7 @@ impl fmt::Display for Error {
                 write!(f, "Unnecessary arguments: {}", args)
             }
             Error::InvalidPath(path) => write!(f, "Invalid path: {}", path),
+            Error::EmptyDirectory(path) => write!(f, "Empty directory: {}", path),
             Error::Thread => write!(f, "Internal Error: thread"),
             Error::FileSystem => write!(f, "Internal Error: file system"),
         }

@@ -10,7 +10,7 @@ pub fn run(args: Vec<String>) -> Result<(), Error> {
     }
     match target.paths.get(0) {
         Some(path) => println!("{}", search::run(&target.keyword, path)),
-        None => return Err(Error::FileSystem),
+        None => return Err(Error::EmptyDirectory(target.raw_path)),
     };
     Ok(())
 }
