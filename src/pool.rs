@@ -59,8 +59,8 @@ impl Master {
             let keyword = target.keyword.clone();
             let result_sender = result_sender.clone();
 
-            self.send_job(move || {
-                Self::print_search_result(result_sender, search::run(&keyword, &path))
+            send_job(&self.sender, move || {
+                Self::print_search_result(&result_sender, search::run(&keyword, &path))
             })?
         }
         self.close(target.paths.len(), &result_receiver);
@@ -68,19 +68,10 @@ impl Master {
         Ok(())
     }
 
-    fn send_job<F>(&self, job: F) -> Result<(), Error>
-    where
-        F: FnOnce() + Send + 'static,
-    {
-        let job = Box::new(job);
-        if self.sender.send(job).is_err() {
-            return Err(Error::Thread);
-        }
-        Ok(())
-    }
-
-    fn print_search_result(result_sender: Sender<JobResult>, result: String) {
-        let send_result = result_sender.send(Box::new(move || println!("{}", result)));
+    fn print_search_result(result_sender: &Sender<JobResult>, result: String) {
+        let send_result = send_job(result_sender, move || {
+            println!("{}", result);
+        });
         if send_result.is_err() {
             println!("{}", Error::Thread);
             process::exit(1);
@@ -118,4 +109,15 @@ impl Worker {
         });
         Worker { thread }
     }
+}
+
+fn send_job<F>(sender: &Sender<Box<dyn FnOnce() + Send + 'static>>, job: F) -> Result<(), Error>
+    where
+        F: FnOnce() + Send + 'static,
+{
+    let job = Box::new(job);
+    if sender.send(job).is_err() {
+        return Err(Error::Thread);
+    }
+    Ok(())
 }
