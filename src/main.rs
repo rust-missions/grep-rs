@@ -1,9 +1,11 @@
 use crate::target::Target;
 use std::{env, process};
+use crate::pool::ThreadPool;
 
 mod error;
 mod print;
 mod target;
+mod pool;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -14,8 +16,9 @@ fn main() {
             process::exit(1);
         }
     };
-    if let Err(e) = print::run(target) {
+
+    if let Err(e) = ThreadPool::run(target) {
         eprintln!("{}", e);
         process::exit(1);
-    }
+    };
 }
