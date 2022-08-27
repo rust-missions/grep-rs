@@ -1,6 +1,6 @@
-use std::fs;
 use crate::error::Error;
 use crate::target::Target;
+use std::fs;
 
 pub fn run(target: Target) -> Result<(), Error> {
     for path in target.paths.iter() {

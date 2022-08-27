@@ -2,8 +2,8 @@ use crate::target::Target;
 use std::{env, process};
 
 mod error;
-mod target;
 mod print;
+mod target;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
