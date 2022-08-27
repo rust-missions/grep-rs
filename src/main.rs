@@ -1,6 +1,7 @@
 use crate::target::Target;
 use std::{env, process};
 
+mod error;
 mod target;
 
 fn main() {

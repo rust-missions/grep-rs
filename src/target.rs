@@ -1,6 +1,7 @@
-use std::fs::ReadDir;
+use crate::error::Error;
+
+use std::fs;
 use std::path::PathBuf;
-use std::{fmt, fs};
 
 pub struct Target {
     pub keyword: String,
@@ -62,7 +63,7 @@ fn find_files_in_directory(dir_path: String) -> Result<Vec<String>, Error> {
     Ok(paths)
 }
 
-fn read_directory(dir_path: &String) -> Result<ReadDir, Error> {
+fn read_directory(dir_path: &String) -> Result<fs::ReadDir, Error> {
     match fs::read_dir(dir_path) {
         Ok(read_dir) => Ok(read_dir),
         Err(_) => Err(Error::FileSystemError),
@@ -73,28 +74,5 @@ fn to_path_name(path: &PathBuf) -> Result<String, Error> {
     match path.file_name() {
         Some(file_name) => Ok(file_name.to_string_lossy().into_owned()),
         None => Err(Error::FileSystemError),
-    }
-}
-
-pub enum Error {
-    MissingKeyword,
-    MissingPath,
-    TooManyArgs(Vec<String>),
-    InvalidPath(String),
-    FileSystemError,
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::MissingKeyword => write!(f, "Missing arguments: keyword, path"),
-            Error::MissingPath => write!(f, "Missing arguments: path"),
-            Error::TooManyArgs(redundant_args) => {
-                let args = redundant_args.join(", ");
-                write!(f, "Unnecessary arguments: {}", args)
-            }
-            Error::InvalidPath(path) => write!(f, "Invalid path: {}", path),
-            Error::FileSystemError => write!(f, "Internal Error"),
-        }
     }
 }
