@@ -17,7 +17,7 @@ pub struct ThreadPool {
 impl ThreadPool {
     pub fn new(workload: &usize) -> Result<ThreadPool, Error> {
         if *workload == 0 {
-            return Err(Error::ThreadPoolError);
+            return Err(Error::ThreadError);
         }
         let (sender, receiver) = mpsc::channel();
         let receiver = Arc::new(Mutex::new(receiver));
@@ -35,8 +35,8 @@ impl ThreadPool {
         match self.master.run(target) {
             Ok(_) => {
                 for worker in self.workers {
-                    if let Err(_) = worker.thread.join() {
-                        return Err(Error::ThreadPoolError);
+                    if let Err(_) = &worker.thread.join() {
+                        return Err(Error::ThreadError);
                     }
                 }
             }
@@ -58,37 +58,30 @@ impl Master {
         for path in target.paths.to_vec() {
             let keyword = target.keyword.clone();
             let result_sender = result_sender.clone();
-
-            if let Err(e) = self.execute(move || match search::run(&keyword, &path) {
-                Ok(search_result) => {
-                    if let Err(e) =
-                    result_sender.send(Box::new(move || println!("{}", search_result)))
-                    {
-                        eprintln!("{}", e);
-                        process::exit(1);
-                    }
-                }
-                Err(e) => {
-                    eprintln!("{}", e);
-                    process::exit(1);
-                }
-            }) {
-                return Err(e);
-            };
+            self.send_job(move || {
+                Self::print_search_result(result_sender, search::run(&keyword, &path))
+            })?
         }
         self.close(target.paths.len(), &result_receiver);
 
         Ok(())
     }
 
-    fn execute<F>(&self, f: F) -> Result<(), Error>
-        where
-            F: FnOnce() + Send + 'static,
+    fn send_job<F>(&self, job: F) -> Result<(), Error>
+    where
+        F: FnOnce() + Send + 'static,
     {
-        let job = Box::new(f);
-        match self.sender.send(job) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(Error::ThreadPoolError),
+        let job = Box::new(job);
+        if let Err(_) = self.sender.send(job) {
+            return Err(Error::ThreadError);
+        }
+        Ok(())
+    }
+
+    fn print_search_result(result_sender: Sender<JobResult>, result: String) {
+        if let Err(_) = result_sender.send(Box::new(move || println!("{}", result))) {
+            println!("{}", Error::ThreadError);
+            process::exit(1);
         }
     }
 
@@ -115,8 +108,8 @@ impl Worker {
                     Ok(job) => job(),
                     Err(_) => break,
                 },
-                Err(e) => {
-                    eprintln!("{}", e);
+                Err(_) => {
+                    eprintln!("{}", Error::ThreadError);
                     process::exit(1);
                 }
             }
