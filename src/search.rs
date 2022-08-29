@@ -10,7 +10,9 @@ pub fn run(keyword: &str, path: &String) -> String {
     for (line_idx, line_content) in grep(keyword, &contents) {
         search_results.push(format!("{} {} - {}", path, line_idx, line_content));
     }
-
+    if search_results.is_empty() {
+        return format!("Keyword '{}' not found in '{}'", keyword, path);
+    }
     search_results.join("\n")
 }
 
