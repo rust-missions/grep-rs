@@ -1,13 +1,10 @@
 use crate::error::Error;
-use std::{fs, process};
+use std::fs;
 
 pub fn run(keyword: &str, path: &String) -> String {
     let contents = match fs::read_to_string(path) {
         Ok(content) => content,
-        Err(_) => {
-            eprintln!("{}", Error::FileSystem);
-            process::exit(1);
-        }
+        Err(_) => return Error::FailedToReadTextFile(path.to_string()).to_string(),
     };
     let mut search_results = Vec::new();
     for (line_idx, line_content) in grep(keyword, &contents) {
